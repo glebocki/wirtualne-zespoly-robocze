@@ -45,8 +45,9 @@ extern ViewParams viewpar;                         // view parameters (camera po
 struct Frame                                       // The main structure of net communication between aplications. Homogenous for simpicity.
 {
 	int type;                                      // frame type  
-	int iID;                                       // object identifier 
+	int iID;                                       // object identifier
 	ObjectState state;                             // object state values (see object module)
+	int changeiID;
 };
 
 
@@ -55,14 +56,14 @@ struct Frame                                       // The main structure of net 
 DWORD WINAPI ReceiveThreadFun(void *ptr)
 {
 	multicast_net *pmt_net = (multicast_net*)ptr;  // the pointer to the object of multicast_net class (see net module)
-	Frame frame;
+	Frame frame, changeFrame;
 
 	while (1)
 	{
 		int frame_size = pmt_net->reciv((char*)&frame, sizeof(Frame));   // waiting for frame 
 		ObjectState state = frame.state;
 
-		fprintf(f, "received state of object with iID = %d\n", frame.iID);
+		//fprintf(f, "my iID = %d, received state of object with iID = %d\n", my_vehicle->iID, frame.iID);
 
 		if (frame.iID != my_vehicle->iID)                     // if the frame isn't my own frame
 		{
@@ -75,7 +76,24 @@ DWORD WINAPI ReceiveThreadFun(void *ptr)
 		         
 				//fprintf(f, "alien object ID = %d was registred\n", ob->iID);
 			}
+
 			movable_objects[frame.iID]->ChangeState(state);   // updating the state of the object
+
+			if (frame.type == 1 && my_vehicle->changeID == frame.iID && frame.changeiID == my_vehicle->iID) {
+				changeFrame.state = my_vehicle->State();                // state of my own object
+				changeFrame.iID = my_vehicle->iID;                      // my object identifier
+				changeFrame.type = 2;
+				changeFrame.changeiID = my_vehicle->iID;
+
+				multi_send->send((char*)&changeFrame, sizeof(Frame));   // sending a message to other application
+
+				my_vehicle->ChangeState(state);
+				my_vehicle->changeID = -1;
+			}
+			if (frame.type == 2 && my_vehicle->changeID == frame.iID && frame.changeiID == my_vehicle->changeID) {
+				my_vehicle->ChangeState(state);
+				my_vehicle->changeID = -1;
+			}
 
 		}
 	}  // while(1)
@@ -133,6 +151,23 @@ void VirtualWorldCycle()
 	Frame frame;
 	frame.state = my_vehicle->State();                // state of my own object
 	frame.iID = my_vehicle->iID;                      // my object identifier
+	frame.type = 0;
+	frame.changeiID = my_vehicle->changeID;
+
+	multi_send->send((char*)&frame, sizeof(Frame));   // sending a message to other application
+}
+
+
+//******************************************************************
+// Funkcja wysylajaca zadanie zamiany stanu do innego obiektu
+void sendChangeRequest(int changeID) {
+	my_vehicle->changeID = changeID;
+	fprintf(f, "my iID = %d, whant to change with iID = %d\n", my_vehicle->iID, changeID);
+	Frame frame;
+	frame.state = my_vehicle->State();                // state of my own object
+	frame.iID = my_vehicle->iID;                      // my object identifier
+	frame.type = 1;
+	frame.changeiID = my_vehicle->changeID;
 
 	multi_send->send((char*)&frame, sizeof(Frame));   // sending a message to other application
 }
@@ -178,8 +213,10 @@ int WINAPI WinMain(HINSTANCE hInstance,
 	RegisterClass(&main_class);
 
 	main_window = CreateWindow(class_name, "WZR-lab 2020/21 topic 1 - ver. f", WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
-		100, 50, 1200, 800, NULL, NULL, hInstance, NULL);
+		100, 50, 600, 400, NULL, NULL, hInstance, NULL);
 
+	//main_window = CreateWindow(class_name, "WZR-lab 2020/21 topic 1 - ver. f", WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+		//100, 50, 1200, 800, NULL, NULL, hInstance, NULL);
 
 	ShowWindow(main_window, nCmdShow);
 
@@ -416,6 +453,21 @@ LRESULT CALLBACK WndProc(HWND main_window, UINT message_code, WPARAM wParam, LPA
 		case 'D':   
 		{
 			viewpar.cam_angle -= PI * 5 / 180;
+			break;
+		}
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+		{
+			int changeID = (int)LOWORD(wParam) - 48;
+			sendChangeRequest(changeID);
 			break;
 		}
 		case 'A':   // switching on/off object tracking
