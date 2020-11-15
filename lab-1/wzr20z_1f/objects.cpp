@@ -20,10 +20,12 @@ extern bool if_ID_visible;
 
 MovableObject::MovableObject()             // konstruktor                   
 {
-	iID = (unsigned int)(rand() % 1000);  // identyfikator obiektu
+	iID = (unsigned int)(rand() % 10);  // identyfikator obiektu
 	fprintf(f, "my_vehicle->iID = %d\n", iID);
 
-	// zmienne zwi¹zame z akcjami kierowcy
+	changeID = -1;
+
+	// zmienne zwi¹zane z akcjami kierowcy
 	F = Fb = 0;	// si³y dzia³aj¹ce na obiekt 
 	breaking_factor = 0;			// stopieñ hamowania
 	steer_wheel_speed = 0;  // prêdkoœæ krêcenia kierownic¹ w rad/s
@@ -185,8 +187,8 @@ void MovableObject::Simulation(float dt)          // obliczenie nowego stateu na
 	Vector3 normPQR = normal_vector(Pt, Rt, Qt), normPRS = normal_vector(Pt, Rt, St), normPQS = normal_vector(Pt, St, Qt),
 		normQRS = normal_vector(Qt, Rt, St);   // normalne do p³aszczyzn wyznaczonych przez trójk¹ty
 
-	fprintf(f, "P.y = %f, Pt.y = %f, Q.y = %f, Qt.y = %f, R.y = %f, Rt.y = %f, S.y = %f, St.y = %f\n",
-		P.y, Pt.y, Q.y, Qt.y, R.y, Rt.y, S.y, St.y);
+	//fprintf(f, "P.y = %f, Pt.y = %f, Q.y = %f, Qt.y = %f, R.y = %f, Rt.y = %f, S.y = %f, St.y = %f\n",
+	//	P.y, Pt.y, Q.y, Qt.y, R.y, Rt.y, S.y, St.y);
 
 	float sryPQR = ((Qt^normPQR) - normPQR.x*state.vPos.x - normPQR.z*state.vPos.z) / normPQR.y, // wys. œrodka pojazdu
 		sryPRS = ((Pt^normPRS) - normPRS.x*state.vPos.x - normPRS.z*state.vPos.z) / normPRS.y, // po najechaniu na skarpê 

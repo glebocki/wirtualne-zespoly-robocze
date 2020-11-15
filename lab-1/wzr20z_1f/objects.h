@@ -16,6 +16,7 @@ class MovableObject
 {
 public:
 	int iID;                  // object identifier
+	int changeID;
 
 	ObjectState state;
 
