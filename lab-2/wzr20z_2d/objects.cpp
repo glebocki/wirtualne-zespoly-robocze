@@ -31,6 +31,8 @@ MovableObject::MovableObject()             // konstruktor
 	iID = (unsigned int)(rand() % 1000);  // identyfikator obiektu
 	fprintf(f, "my_vehicle->iID = %d\n", iID);
 	bool nn = if_prediction_test;
+	time_of_last_update = clock();
+	fprintf(f, "my_vehicle->time_of_last_update = %f\n", time_of_last_update);
 
 	// zmienne zwi¹zame z akcjami kierowcy
 	F = Fb = 0;	// si³y dzia³aj¹ce na obiekt 

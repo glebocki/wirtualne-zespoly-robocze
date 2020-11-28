@@ -17,6 +17,7 @@ class MovableObject
 {
 public:
 	int iID;                  // identyfikator obiektu
+	float time_of_last_update;
 
 	ObjectState state;
 

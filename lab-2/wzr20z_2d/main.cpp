@@ -99,6 +99,7 @@ DWORD WINAPI ReceiveThreadFun(void *ptr)
 			{
 				MovableObject *ob = new MovableObject();
 				ob->iID = frame.iID;
+				ob->time_of_last_update = clock();
 				other_vehicles[frame.iID] = ob;		
 				//fprintf(f, "zarejestrowano %d obcy obiekt o ID = %d\n", iLiczbaCudzychOb - 1, CudzeObiekty[iLiczbaCudzychOb]->iID);
 			}
@@ -204,15 +205,40 @@ void VirtualWorldCycle()
 	time_from_start_in_s = (float)(clock() - time_start) / CLOCKS_PER_SEC;
 	
 	//if ((float)(clock() - time_last_send) / CLOCKS_PER_SEC >= 0.2 + 30 * (time_from_start_in_s < 30))
-	if ((float)(clock() - time_last_send) / CLOCKS_PER_SEC >= 1.0)
-	{
-		Frame frame;
-		frame.state = my_vehicle->State();                   // stan w³asnego obiektu 
-		frame.iID = my_vehicle->iID;
-		multi_send->send((char*)&frame, sizeof(Frame));  // wys³anie komunikatu do pozosta³ych aplikacji co pewien czas
-		time_last_send = clock();
-		number_of_send_trials++;
+	if (my_vehicle->F > 50 || my_vehicle->F < -50) {
+		if ((float)(clock() - time_last_send) / CLOCKS_PER_SEC >= 1.0)
+		{
+			Frame frame;
+			frame.state = my_vehicle->State();                   // stan w³asnego obiektu 
+			frame.iID = my_vehicle->iID;
+			multi_send->send((char*)&frame, sizeof(Frame));  // wys³anie komunikatu do pozosta³ych aplikacji co pewien czas
+			time_last_send = clock();
+			number_of_send_trials++;
+		}
 	}
+	else if (my_vehicle->state.wheel_angle != 0) {
+		if ((float)(clock() - time_last_send) / CLOCKS_PER_SEC >= 0.5)
+		{
+			Frame frame;
+			frame.state = my_vehicle->State();                   // stan w³asnego obiektu 
+			frame.iID = my_vehicle->iID;
+			multi_send->send((char*)&frame, sizeof(Frame));  // wys³anie komunikatu do pozosta³ych aplikacji co pewien czas
+			time_last_send = clock();
+			number_of_send_trials++;
+		}
+	}
+	else {
+		if ((float)(clock() - time_last_send) / CLOCKS_PER_SEC >= 2.0)
+		{
+			Frame frame;
+			frame.state = my_vehicle->State();                   // stan w³asnego obiektu 
+			frame.iID = my_vehicle->iID;
+			multi_send->send((char*)&frame, sizeof(Frame));  // wys³anie komunikatu do pozosta³ych aplikacji co pewien czas
+			time_last_send = clock();
+			number_of_send_trials++;
+		}
+	}
+	
 
 	//       ----------------------------------
 	//    -------------------------------------
@@ -226,10 +252,14 @@ void VirtualWorldCycle()
 
 		if (veh)
 		{
-			//veh->state.vPos = ...
-			//veh->state.vV = ....
-			//veh->state.qOrient = ....
+			float dt = (float)((clock() - veh->time_of_last_update)/ CLOCKS_PER_SEC);
+			veh->state.vV = veh->state.vV + veh->state.vA * dt / 10;
+			veh->state.vPos = veh->state.vPos + veh->state.vV * dt;
+			Vector3 w_obrot = veh->state.vV_ang * dt + veh->state.vA_ang * dt * dt / 2;
+			quaternion q_obrot = AsixToQuat(w_obrot.znorm(), w_obrot.length());
+			veh->state.qOrient = q_obrot * veh->state.qOrient;
 			//veh->state.vV_ang = ....
+			veh->time_of_last_update = clock();
 		}
 
 	}
