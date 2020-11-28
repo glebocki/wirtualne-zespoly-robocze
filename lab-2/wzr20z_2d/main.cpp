@@ -226,10 +226,69 @@ void VirtualWorldCycle()
 
 		if (veh)
 		{
-			//veh->state.vPos = ...
-			//veh->state.vV = ....
-			//veh->state.qOrient = ....
-			//veh->state.vV_ang = ....
+			// przyrost polozenia = predkosc poczatkowa * czas + (przyspieszenie * czas^2) / 2 - ruch przyspieszony zmienny
+			Vector3 dvPos = veh->state.vV * avg_cycle_time + veh->state.vA * avg_cycle_time * avg_cycle_time / 2;
+			// nowa pozycja srodka ciezkosci
+			veh->state.vPos = veh->state.vPos + dvPos;
+
+			// wektor obrotu - predkosc katowa od predkosci * czas + predkosci katowa od przyspieszenia * czas^2
+			Vector3 w_obrot = veh->state.vV_ang * avg_cycle_time + veh->state.vA_ang * avg_cycle_time * avg_cycle_time / 2;
+
+			// nowy kwaternion obrotu - zgodnie z wzorem z instrukcji -(wektor obrotu znormalizowany, dlugosc wektora obrotu)
+			quaternion q_obrot = AsixToQuat(w_obrot.znorm(), w_obrot.length());
+
+			// nowy kwaternion zastepuje stary
+			veh->state.qOrient = q_obrot * veh->state.qOrient;
+
+			// OBRACAMY WEKTORY
+			// oœ obiektu pokrywa siê z osi¹ x globalnego uk³adu wspó³rzêdnych (lokalna oœ x)
+			Vector3 dir_forward = veh->state.qOrient.rotate_vector(Vector3(1, 0, 0));
+			// wektor skierowany pionowo w górê od postawy obiektu (lokalna oœ y)
+			Vector3 dir_up = veh->state.qOrient.rotate_vector(Vector3(0, 1, 0));
+			// wektor skierowany w prawo (lokalna oœ z)
+			Vector3 dir_right = veh->state.qOrient.rotate_vector(Vector3(0, 0, 1));
+
+			//NOWE SK£ADOWE V 
+				//wektor predkosci w przod - os x
+			Vector3 vV_forward = dir_forward * (veh->state.vV ^ dir_forward);
+
+			//wektor predkosci w bok - os z
+			Vector3	vV_right = dir_right * (veh->state.vV ^ dir_right);
+
+			//wektor predkosci do gory - os y
+			Vector3	vV_up = dir_up * (veh->state.vV ^ dir_up);
+
+
+			//NOWE SK£ADOWE V katowej
+			//wektor predkosci katowej w przod - os x
+			Vector3 vV_ang_forward = dir_forward * (veh->state.vV_ang ^ dir_forward);
+
+			//wektor predkosci katowej w bok - os z
+			Vector3	vV_ang_right = dir_right * (veh->state.vV_ang ^ dir_right);
+
+			//wektor predkosci katowej w gore -os y
+			Vector3	vV_ang_up = dir_up * (veh->state.vV_ang ^ dir_up);
+
+
+			//wektor od grawitacji  - w dol
+			Vector3 vAg = Vector3(0, -1, 0) * 9.81;
+
+			//odleglosc srodka ciezkosci pojazdu od ziemi
+			float height = terrain.DistFromGround(my_vehicle->state.vPos.x, my_vehicle->state.vPos.z);
+
+			//wysokosc pojazdu  nad ziemia - nasz pojazd jest wysoki na 1.7m, wysokosc srodka to zatem 1.7/2
+
+			/*
+			if (height < 0.85) {
+				obj->state.vPos.y = obj->state.vPos.y + (0.85);
+				//tutaj powinienem poprawic przyspieszenie grawitacyjne ale jeszcze nie wiem jak
+			}
+			*/
+
+			//nowa predkosc - skladane sa wektory  z roznych osi
+			veh->state.vV = vV_up + vV_right + vV_forward;
+			//nowa predkosc katowe = skladane sa wektory  z roznych osi
+			veh->state.vV_ang = vV_ang_up + vV_ang_right + vV_ang_forward;
 		}
 
 	}
