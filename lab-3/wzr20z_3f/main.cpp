@@ -57,7 +57,7 @@ int cursor_x, cursor_y;                         // polo¿enie kursora myszki w c
 extern float TransferSending(int ID_receiver, int transfer_type, float transfer_value);
 
 enum frame_types {
-	OBJECT_STATE, ITEM_TAKING, ITEM_RENEWAL, COLLISION, TRANSFER
+	OBJECT_STATE, ITEM_TAKING, ITEM_RENEWAL, COLLISION, TRANSFER, AUCTION, OFFER
 };
 
 enum transfer_types { MONEY, FUEL};
@@ -79,6 +79,9 @@ struct Frame
 	int team_number;
 
 	long existing_time;        // czas jaki uplyn¹³ od uruchomienia programu
+
+	float auction_amount;
+	float auction_offer;
 };
 
 
@@ -175,6 +178,25 @@ DWORD WINAPI ReceiveThreadFunction(void *ptr)
 			}
 			break;
 		}
+		case AUCTION:
+		{
+			if (frame.iID != my_vehicle->iID) {
+				my_vehicle->amount_bought = frame.auction_amount;
+				my_vehicle->highest_offer = frame.auction_offer;
+				my_vehicle->highest_bidderID = 0;
+				my_vehicle->auctionID = frame.iID;
+				my_vehicle->negotiation_timer = 8;
+				sprintf(par_view.inscription2, "$$$__Pojazd_o_ID_%d_chce_kupic_%0.1f_ropy_-cena_wywol:_%f_-pozostało_czasu:_%d_$$$", my_vehicle->auctionID, my_vehicle->amount_bought, my_vehicle->highest_offer, my_vehicle->negotiation_timer);
+			}
+			break;
+		}
+		case OFFER:
+		{
+			my_vehicle->highest_bidderID = frame.iID;
+			my_vehicle->highest_offer = frame.auction_offer;
+			my_vehicle->negotiation_timer = 8;
+			break;
+		}
 		
 		} // switch po typach ramek
 		// Opuszczenie ścieżki krytycznej / Release the Critical section
@@ -230,6 +252,33 @@ void VirtualWorldCycle()
 
 		sprintf(par_view.inscription1, " %0.0f_fps, fuel = %0.2f, money = %d,", fFps, my_vehicle->state.amount_of_fuel, my_vehicle->state.money);
 		if (counter_of_simulations % 500 == 0) sprintf(par_view.inscription2, "");
+		
+		if (my_vehicle->negotiation_timer > 0) {
+			my_vehicle->negotiation_timer--;
+			if (my_vehicle->highest_bidderID == 0) {
+				sprintf(par_view.inscription2, "$$$__Pojazd_o_ID_%d_chce_kupic_%0.1f_ropy_cena_wywol:_%0.1f_-pozostało_czasu:_%d_$$$", my_vehicle->auctionID, my_vehicle->amount_bought, my_vehicle->highest_offer,my_vehicle->negotiation_timer);
+			}
+			else {
+				sprintf(par_view.inscription2, "$$$__Najwyzsza_oferta:_%0.1f/1_ropy_-_oferent:_%d_-_pozostało_czasu:_%d_$$$", my_vehicle->highest_offer, my_vehicle->highest_bidderID, my_vehicle->negotiation_timer);
+			}
+			
+		}
+		else {
+			if (my_vehicle->auctionID == my_vehicle->iID) {
+				TransferSending(my_vehicle->highest_bidderID, MONEY, my_vehicle->amount_bought * my_vehicle->highest_offer);
+				my_vehicle->auctionID = 0;
+				my_vehicle->highest_bidderID = 0;
+			}
+			else if (my_vehicle->iID == my_vehicle->highest_bidderID) {
+				TransferSending(my_vehicle->auctionID, FUEL, my_vehicle->amount_bought);
+				my_vehicle->auctionID = 0;
+				my_vehicle->highest_bidderID = 0;
+			}
+			else {
+				my_vehicle->auctionID = 0;
+				my_vehicle->highest_bidderID = 0;
+			}
+		}
 	}
 
 	terrain.DeleteObjectsFromSectors(my_vehicle);
@@ -337,6 +386,35 @@ float TransferSending(int ID_receiver, int transfer_type, float transfer_value)
 	return frame.transfer_value;
 }
 
+void startAukcji(float amount) {
+	my_vehicle->negotiation_timer = 8;
+	my_vehicle->amount_bought = amount;
+	my_vehicle->auctionID = my_vehicle->iID;
+	my_vehicle->highest_bidderID = 0;
+	my_vehicle->highest_offer = my_vehicle->state.money / my_vehicle->amount_bought;
+	sprintf(par_view.inscription2, "$$$__Pojazd_o_ID_%d_chce_kupic_%0.1f_ropy_-cena_wywol:_%0.1f-pozostało_czasu:_%d_$$$", my_vehicle->auctionID, my_vehicle->amount_bought, my_vehicle->highest_offer, my_vehicle->negotiation_timer);
+	Frame frame;
+	frame.frame_type = AUCTION;
+	frame.iID = my_vehicle->iID;
+	frame.auction_amount = my_vehicle->amount_bought;
+	frame.auction_offer = my_vehicle->highest_offer;
+	int iRozmiar = multi_send->send((char*)&frame, sizeof(Frame));
+}
+
+void zlozenieOferty() {
+	if (my_vehicle->auctionID != 0 && my_vehicle->auctionID != my_vehicle->iID) {
+		if (my_vehicle->highest_offer > 1) { // && (my_vehicle->highest_offer * my_vehicle->amount_bought) < my_vehicle->state.money
+			my_vehicle->highest_bidderID = my_vehicle->iID;
+			my_vehicle->highest_offer -= 1;
+			Frame frame;
+			frame.frame_type = OFFER;
+			frame.iID = my_vehicle->iID;
+			frame.auction_offer = my_vehicle->highest_offer;
+			frame.iID_receiver = my_vehicle->iID;
+			int iRozmiar = multi_send->send((char*)&frame, sizeof(Frame));
+		}
+	}
+}
 
 
 
@@ -751,6 +829,16 @@ void MessagesHandling(UINT message_type, WPARAM wParam, LPARAM lParam)
 						float ilosc_p = TransferSending(ob->iID, MONEY, 100);
 				}
 			}
+			break;
+		}
+		case 'N': // ogloszenie negocjacji
+		{
+			startAukcji(5.0);
+			break;
+		}
+		case 'O': // zlozenie oferty
+		{
+			zlozenieOferty();
 			break;
 		}
 		

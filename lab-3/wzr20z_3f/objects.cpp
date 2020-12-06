@@ -64,6 +64,12 @@ MovableObject::MovableObject(Terrain *t)             // konstruktor
 	state.money = 1000;    // np. dolarów
 	state.amount_of_fuel = 10.0;   // np. kilogramów paliwa 
 
+	auctionID = 0;			  // identyfikator obiektu ktory og³osi³ negocjacje
+	highest_bidderID = 0;
+	highest_offer = 0;
+	amount_bought = 0;
+	negotiation_timer = 0;
+
 	time_of_simulation = 0;    // symulowany czas rzeczywisty od pocz¹tku istnienia obiektu 
 
 	F = 0;	      // si³y dzia³aj¹ce na obiekt 
