@@ -56,6 +56,10 @@ int cursor_x, cursor_y;                         // polo¿enie kursora myszki w c
 
 extern float TransferSending(int ID_receiver, int transfer_type, float transfer_value);
 
+bool offerIsOnGoing = false;
+int offerStartTime;
+int offerMaxTimeInSeconds = 8;
+
 enum frame_types {
 	OBJECT_STATE, ITEM_TAKING, ITEM_RENEWAL, COLLISION, TRANSFER
 };
@@ -292,6 +296,19 @@ void VirtualWorldCycle()
 
 
 		my_vehicle->number_of_renewed_item = -1;
+	}
+
+	if (offerIsOnGoing)
+	{
+		int offerIsOnGoingForSeconds = (clock() - offerStartTime) / CLOCKS_PER_SEC;
+		int timeTillEndOfOffer = offerMaxTimeInSeconds - offerIsOnGoingForSeconds;
+		if (timeTillEndOfOffer <= 0) {
+			offerIsOnGoing = false;
+		}
+		sprintf(par_view.inscription3, "Oferta_paliwa_-_koniec_za:_%d_s,", timeTillEndOfOffer);
+	}
+	else {
+		sprintf(par_view.inscription3, "");
 	}
 
 }
@@ -755,8 +772,25 @@ void MessagesHandling(UINT message_type, WPARAM wParam, LPARAM lParam)
 		}
 		
 		case 'L':     // rozpoczęcie zaznaczania metodą lasso
+		{
 			L_pressed = true;
 			break;
+		}
+		case 'O':
+		{
+			offerIsOnGoing = true;
+			offerStartTime = clock();
+
+			
+			break;
+		}
+		case '+':
+		{
+		}
+		case '-':
+		{
+
+		}
 	
 
 		} // switch po klawiszach
