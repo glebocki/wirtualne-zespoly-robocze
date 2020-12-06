@@ -26,6 +26,12 @@ class MovableObject
 {
 public:
 	int iID;                  // identyfikator obiektu
+	int auctionID;			  // identyfikator obiektu ktory og³osi³ negocjacje
+	int highest_bidderID;
+	float highest_offer;
+	float amount_bought;
+	long negotiation_timer;
+
 
 	ObjectState state;
 
